@@ -1,1 +1,9 @@
 /target
+
+build/macos/src/Game.app/Contents/MacOS/assets
+build/macos/src/jellybeans.app/Contents/Resources/AppIcon.icns
+build/macos/src/jellybeans.app/Contents/MacOS/jellybeans
+build/macos/src/jellybeans.app/Contents/MacOS/assets/
+build/macos/src/Applications
+build/macos/AppIcon.iconset
+jellybeans.dmg
