@@ -18,10 +18,13 @@ fn main() {
                 draw_stopper,
                 fps,
                 score_color,
+                minute_timer_text,
+                minute_timer,
                 (rotate, update_score).chain(),
             ),
         )
         .insert_resource(Stopper::Under(0))
+        .insert_resource(MinuteTimer::default())
         .run();
 }
 
@@ -87,6 +90,7 @@ fn update_score(
 
 const X_EXTENT: f32 = 950.;
 const NUM_SHAPES: usize = 10;
+const TIMER_SECS: f32 = 60.0;
 
 #[derive(Component)]
 struct ShapeIndex(u8);
@@ -118,10 +122,14 @@ impl Stopper {
 struct ScoreText;
 
 #[derive(Component)]
+struct RemainingTimeText;
+
+#[derive(Component)]
 struct FpsText;
 
 fn key_input(
     mut stopper: ResMut<Stopper>,
+    mut timer: ResMut<MinuteTimer>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut ind_score: Query<&mut Text2d, (With<ScoreText>, With<ShapeIndex>)>,
 ) {
@@ -129,13 +137,24 @@ fn key_input(
         stopper.next();
         return;
     }
-    if keyboard.just_pressed(KeyCode::KeyR) {
+
+    if let Some(t) = &timer.timer {
+        if !t.finished() && keyboard.just_pressed(KeyCode::KeyR) {
+            *stopper = Stopper::Under(0);
+
+            for mut t in &mut ind_score {
+                **t = String::default();
+            }
+        }
+    }
+
+    if keyboard.just_pressed(KeyCode::Equal) {
+        timer.timer = None;
         *stopper = Stopper::Under(0);
 
         for mut t in &mut ind_score {
             **t = String::default();
         }
-
         return;
     }
 }
@@ -144,6 +163,21 @@ fn stop_shape_mouse(mut stopper: ResMut<Stopper>, mouse: Res<ButtonInput<MouseBu
     if mouse.just_pressed(MouseButton::Left) {
         stopper.next();
         return;
+    }
+}
+
+fn minute_timer(mut stopper: ResMut<Stopper>, mut timer: ResMut<MinuteTimer>) {
+    if let Some(t) = &mut timer.timer {
+        if t.just_finished() {
+            *stopper = Stopper::Done;
+        }
+    } else {
+        match *stopper {
+            Stopper::Under(1) => {
+                timer.timer = Some(Timer::from_seconds(TIMER_SECS, TimerMode::Once));
+            }
+            _ => {}
+        }
     }
 }
 
@@ -193,7 +227,14 @@ fn setup(
     ));
 
     commands.spawn((
-        Text::new("Press space or click to a jelly bean!\nPress R to reset\n\nTry to line them all up as flat as you can!"),
+        Text::new(concat!(
+            "Press space or click to stop the next jelly bean!\n",
+            "Press R to start at the first bean again.\n",
+            "Press = to start the next player.\n",
+            "\n",
+            "Try to line them all up as flat as you can!\n",
+            "Lock in your best score before the timer runs out\n",
+        )),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
@@ -212,15 +253,20 @@ fn setup(
             ..default()
         })
         .with_children(|p| {
+            p.spawn(Text::new("FPS: ")).with_child((
+                TextColor(GOLD.into()),
+                TextSpan::default(),
+                FpsText,
+            ));
             p.spawn(Text::new("Score: ")).with_child((
                 TextColor(PLUM.into()),
                 TextSpan::default(),
                 ScoreText,
             ));
-            p.spawn(Text::new("FPS: ")).with_child((
-                TextColor(GOLD.into()),
+            p.spawn(Text::new("Remaining Time: ")).with_child((
+                TextColor(ORANGE.into()),
                 TextSpan::default(),
-                FpsText,
+                RemainingTimeText,
             ));
         });
 
@@ -240,6 +286,36 @@ fn fps(diagnostics: Res<DiagnosticsStore>, mut query: Query<&mut TextSpan, With<
             if let Some(value) = fps.smoothed() {
                 **span = format!("{value:.0}");
             }
+        }
+    }
+}
+
+#[derive(Default, Resource)]
+struct MinuteTimer {
+    timer: Option<Timer>,
+}
+
+fn minute_timer_text(
+    time: Res<Time>,
+    mut timer: ResMut<MinuteTimer>,
+    mut query: Query<&mut TextSpan, With<RemainingTimeText>>,
+) {
+    let Some(ref mut timer) = timer.timer else {
+        for mut span in &mut query {
+            **span = format!("Ready!");
+        }
+        return;
+    };
+
+    timer.tick(time.delta());
+
+    if timer.finished() {
+        for mut span in &mut query {
+            **span = format!("Done!");
+        }
+    } else {
+        for mut span in &mut query {
+            **span = format!("{:.1}", timer.remaining_secs());
         }
     }
 }
