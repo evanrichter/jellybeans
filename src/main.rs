@@ -8,7 +8,16 @@ use bevy::{
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Jellybeans".to_string(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            FrameTimeDiagnosticsPlugin,
+        ))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
