@@ -371,6 +371,9 @@ fn countdown_text(
     mut query: Query<&mut Text, With<CountDownText>>,
 ) {
     let Some(ref mut timer) = timer.timer else {
+        for mut span in &mut query {
+            *span = Text::default();
+        }
         return;
     };
 
