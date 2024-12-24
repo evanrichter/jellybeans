@@ -28,6 +28,7 @@ fn main() {
                 fps,
                 score_color,
                 minute_timer_text,
+                countdown_text,
                 minute_timer,
                 (rotate, update_score).chain(),
             ),
@@ -100,6 +101,7 @@ fn update_score(
 const X_EXTENT: f32 = 950.;
 const NUM_SHAPES: usize = 10;
 const TIMER_SECS: f32 = 60.0;
+const COUNTDOWN_SECS: f32 = 16.0;
 
 #[derive(Component)]
 struct ShapeIndex(u8);
@@ -132,6 +134,9 @@ struct ScoreText;
 
 #[derive(Component)]
 struct RemainingTimeText;
+
+#[derive(Component)]
+struct CountDownText;
 
 #[derive(Component)]
 struct FpsText;
@@ -279,6 +284,38 @@ fn setup(
             ));
         });
 
+    commands.spawn((
+        Text::default(),
+        TextFont {
+            font_size: 108.0,
+            ..default()
+        },
+        TextColor(GOLD.into()),
+        CountDownText,
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        },
+    ));
+
+    commands.spawn((
+        Text::default(),
+        TextFont {
+            font_size: 108.0,
+            ..default()
+        },
+        TextColor(GOLD.into()),
+        CountDownText,
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            right: Val::Px(12.0),
+            ..default()
+        },
+    ));
+
     for i in 0..NUM_SHAPES {
         commands.spawn((
             ScoreText,
@@ -325,6 +362,25 @@ fn minute_timer_text(
     } else {
         for mut span in &mut query {
             **span = format!("{:.1}", timer.remaining_secs());
+        }
+    }
+}
+
+fn countdown_text(
+    mut timer: ResMut<MinuteTimer>,
+    mut query: Query<&mut Text, With<CountDownText>>,
+) {
+    let Some(ref mut timer) = timer.timer else {
+        return;
+    };
+
+    if timer.finished() {
+        for mut span in &mut query {
+            **span = format!("Done!");
+        }
+    } else if timer.remaining_secs() < COUNTDOWN_SECS {
+        for mut span in &mut query {
+            **span = format!("{:.0}", timer.remaining_secs().trunc());
         }
     }
 }
